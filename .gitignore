@@ -18,6 +18,7 @@ lvef_31_days_model_weights_stride2_dilation_1.pt
 alistair_ekgs/
 *.npy
 alistair_predictions/
+*.pt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
