@@ -1,0 +1,1 @@
+CLASS_LIST = ['Control', 'Mild', 'Moderate', 'Severe']
