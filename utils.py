@@ -14,7 +14,6 @@ from typing import Callable, Iterable, Tuple, Union, List
 from pandas import DataFrame, Timedelta
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation as R
-
 from functools import lru_cache
 from typing import Iterable
 import pytorch_lightning as pl
@@ -29,65 +28,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def crop_and_scale(
-    img: ArrayLike, res: Tuple[int], interpolation=cv2.INTER_CUBIC, zoom: float = 0.0
-) -> ArrayLike:
-    """Takes an image, a resolution, and a zoom factor as input, returns the
-    zoomed/cropped image."""
-    in_res = (img.shape[1], img.shape[0])
-    r_in = in_res[0] / in_res[1]
-    r_out = res[0] / res[1]
 
-    # Crop to correct aspect ratio
-    if r_in > r_out:
-        padding = int(round((in_res[0] - r_out * in_res[1]) / 2))
-        img = img[:, padding:-padding]
-    if r_in < r_out:
-        padding = int(round((in_res[1] - in_res[0] / r_out) / 2))
-        img = img[padding:-padding]
-
-    # Apply zoom
-    if zoom != 0:
-        pad_x = round(int(img.shape[1] * zoom))
-        pad_y = round(int(img.shape[0] * zoom))
-        img = img[pad_y:-pad_y, pad_x:-pad_x]
-
-    # Resize image
-    img = cv2.resize(img, res, interpolation=interpolation)
-
-    return img
-def write_video(
-    path: Union[str, Path],
-    frames: np.array,  # (n_frames, height, width, 3) as np.uint8
-    fps: float = 50.0,
-    fourcc=cv2.VideoWriter_fourcc(*"MJPG"),
-):
-    """
-    Writes and saves an avi video file from an array of frames.
-
-    Args:
-        path: Filepath to save video to
-        frames: Numpy array of shape (n_frames, height, width, 3) and dtype np.uint8
-        fps: Float framerate of video
-        fourcc: Four character code representing the video codec to be used. Default is MJPG
-    """
-    n_frames, height, width, channels = frames.shape
-    writer = cv2.VideoWriter(str(path), fourcc, fps, (width, height))
-    for frame in frames:
-        writer.write(frame)
-    writer.release()
-def read_video(
-    path: Union[str, Path],
-    n_frames: int = None,
-    sample_period: int = 1,
-    out_fps: float = None,  # Output fps
-    fps: float = None,  # input fps of video (default to avi metadata)
-    frame_interpolation: bool = True,
-    random_start: bool = False,
-    res: Tuple[int] = None,  # (width, height)
-    interpolation=cv2.INTER_CUBIC,
-    zoom: float = 0,
-) -> ArrayLike:
 
 class TrainingModel(pl.LightningModule):
     def __init__(
@@ -306,7 +247,6 @@ class TrainingModel(pl.LightningModule):
         # Log to w&b
         if wandb.run is not None:
             wandb.log(self.metrics)
-
 class EchoDataset(CedarsDataset):
     """
     Dataset class intended for use with a large directory of echo videos stored
