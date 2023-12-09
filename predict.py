@@ -7,8 +7,7 @@ import sys
 import argparse
 sys.path.append('/workspace/cvair/')
 from utils import EchoDataset
-from utils import MultiClassificationModel
-from utils import BinaryClassificationModel
+from utils import ClassificationModel
 from pathlib import Path
 import torchvision
 import os
@@ -55,7 +54,7 @@ def sigmoid(x):
 # test_dl = DataLoader(test_ds, num_workers=16, batch_size=124, drop_last=False, shuffle=False)
 # backbone = torchvision.models.video.r2plus1d_18(pretrained=False)
 # backbone.fc = nn.Linear(512, 1)
-# model = BinaryClassificationModel(backbone, save_predictions_path = os.getcwd())
+# model = ClassificationModel(backbone, save_predictions_path = os.getcwd())
 # weights = torch.load(view_classifier_weights_path)
 # print(model.load_state_dict(weights))
 # trainer = Trainer(gpus=1, devices=[0])
@@ -81,7 +80,7 @@ def sigmoid(x):
 
 # backbone = torchvision.models.video.r2plus1d_18(num_classes = len(CLASS_LIST))
 
-# model = MultiClassificationModel(backbone, save_predictions_path = Path(os.getcwd()), index_labels = CLASS_LIST)
+# model = ClassificationModel(backbone, save_predictions_path = Path(os.getcwd()), index_labels = CLASS_LIST)
 
 # weights = torch.load(MR_weights_path)
 # print(model.load_state_dict(weights))

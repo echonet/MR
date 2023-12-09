@@ -3,13 +3,9 @@ import numpy as np
 import os
 import pandas as pd
 from pathlib import Path
-import random
 import torch
 from torch.utils.data import Dataset, DataLoader
-import torchvision
 import torchvision.transforms.functional as TF
-import wandb
-import yaml
 from typing import Callable, Iterable, Tuple, Union, List
 from pandas import DataFrame, Timedelta
 from numpy.typing import ArrayLike
@@ -20,9 +16,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import numpy as np
-import wandb
 from sklearn import metrics as skl_metrics
-import torchvision
 import os
 from pathlib import Path
 import pandas as pd
@@ -62,7 +56,7 @@ def bootstrap_ppv_f1_recall(x,y):
     print('F1 is ' + str(f1_preds))
     print('Recall is ' + str(recall_preds))
 
-class CedarsDataset(Dataset):
+class EchoDataset(Dataset):
     def __init__(
         self,
         data_path: Union[Path, str],
@@ -71,14 +65,17 @@ class CedarsDataset(Dataset):
         labels: List[str] = None,
         verify_existing: bool = True,
         drop_na_labels: bool = True,
+        n_frames: int = 16,
+        sample_rate: Union[int, Tuple[int], float] = 2
         **kwargs,
     ):
-
         self.verbose = verbose
         self.data_path = Path(data_path)
         self.split = split
         self.verify_existing = verify_existing
         self.drop_na_labels = drop_na_labels
+        self.n_frames = n_frames
+        self.sample_rate = sample_rate
         self.kwargs = kwargs
 
         # Additional inputs are optional.
@@ -171,73 +168,6 @@ class CedarsDataset(Dataset):
 
         return output
 
-class EchoDataset(CedarsDataset):
-    """
-    Dataset class intended for use with a large directory of echo videos stored
-    in .avi format.
-
-    Expects a manifest with filenames and labels, and optionally split,
-    view, frame count, and/or view confidence columns for further
-    subset-making. Returns videos of a set length and at a given
-    resolution in the form of PyTorch Tensors with shape (3, H, W)
-    """
-
-    def __init__(
-        self,
-        # CedarsDataset params
-        data_path: Union[Path, str],
-        manifest_path: Union[Path, str] = None,
-        split: str = None,
-        labels: Union[List[str], str] = None,
-        verify_existing: bool = True,
-        drop_na_labels: bool = True,
-        # EchoDataset params
-        n_frames: int = 16,
-        sample_rate: Union[int, Tuple[int], float] = 2,
-        interpolate_frames: bool = False,
-        resize_res: Tuple[int] = None,
-        zoom: float = 0,
-        do_random_affine: bool = True,
-        random_rotation: float = 0,
-        random_translation: Tuple[int] = None,
-        random_scale: Tuple[int] = None,
-        random_shear: Tuple[int] = None,
-        **kwargs,
-    ):
-        """
-        Args:
-            view: str -- optional, if a manifest has a column called 'view', keep only rows where 'view' is equal to this argument. Useful if you want to
-                         create a dataset that has only A4C echoes, for example.
-            view_threshold: float -- optional, float
-        """
-
-        self.n_frames = n_frames
-        self.sample_rate = sample_rate
-        self.interpolate_frames = interpolate_frames
-        self.resize_res = resize_res
-        self.zoom = zoom
-        self.do_random_affine = do_random_affine
-        if self.do_random_affine:
-            self.random_affine = torchvision.transforms.RandomAffine(
-                degrees=random_rotation,
-                translate=random_translation,
-                scale=random_scale,
-                shear=random_shear,
-            )
-        super().__init__(
-            data_path=data_path,
-            manifest_path=manifest_path,
-            split=split,
-            labels=labels,
-            do_augmentation=do_augmentation,
-            verify_existing=verify_existing,
-            drop_na_labels=drop_na_labels,
-            **kwargs,
-        )
-
-    def __len__(self):
-        return len(self.manifest)
-
     def read_file(self, filepath, row=None):
 
         if isinstance(self.sample_rate, int):  # Simple single int sample period
@@ -282,11 +212,6 @@ class EchoDataset(CedarsDataset):
 
         return vid
 
-    def augment(self, x, y):
-        if self.do_random_affine:
-            x = self.random_affine(x)
-        return x, y
-
     def process_manifest(self, manifest):
         manifest = super().process_manifest(manifest)
         if self.view is not None:
@@ -314,11 +239,13 @@ class EchoDataset(CedarsDataset):
         return manifest
 
 
-class TrainingModel(pl.LightningModule):
+    def __len__(self):
+        return len(self.manifest)
+
+class ClassificationModel(pl.LightningModule):
     def __init__(
         self,
         model,
-        metrics: Iterable[TrainingMetric] = None,
         index_labels=None,
         save_predictions_path=None,
     ):
@@ -330,36 +257,6 @@ class TrainingModel(pl.LightningModule):
         if isinstance(save_predictions_path, str):
             save_predictions_path = Path(save_predictions_path)
         self.save_predictions_path = save_predictions_path
-class BinaryClassificationModel(TrainingModel):
-    def __init__(
-        self,
-        model,
-        index_labels=None,
-        save_predictions_path=None,
-    ):
-        super().__init__(
-            model=model,
-            metrics=metrics,
-            index_labels=index_labels,
-            save_predictions_path=save_predictions_path,
-        )
-
-    def prepare_batch(self, batch):
-        if len(batch["labels"].shape) == 1:
-            batch["labels"] = batch["labels"][:, None]
-        return batch
-class MultiClassificationModel(TrainingModel):
-    def __init__(
-        self,
-        model,
-        index_labels=None,
-        save_predictions_path=None,
-    ):
-        super().__init__(
-            model=model,
-            index_labels=index_labels,
-            save_predictions_path=save_predictions_path)
-
     def prepare_batch(self, batch):
         batch["labels"] = batch["labels"].long()
         batch["primary_input"] = batch["primary_input"].float()
