@@ -96,76 +96,7 @@ def read_video(
     if n_frames == 1:
         out = np.squeeze(out)
     return out, vid_size, fps
-def read_file(self, filepath, row=None):
 
-    if isinstance(self.sample_rate, int):  # Simple single int sample period
-        vid, vid_shape, fps = read_video(
-            filepath,
-            self.n_frames,
-            res=self.resize_res,
-            zoom=self.zoom,
-            sample_period=self.sample_rate,
-            random_start=self.random_start,
-        )
-    elif isinstance(self.sample_rate, float):  # Fixed fps
-        target_fps = self.sample_rate
-        fps = row["fps"]
-
-        vid, vid_shape, fps = read_video(
-            filepath,
-            self.n_frames,
-            1,
-            fps=row["fps"],
-            out_fps=target_fps,
-            frame_interpolation=self.interpolate_frames,
-            random_start=self.random_start,
-            res=self.resize_res,
-            zoom=self.zoom,
-        )
-    else:  # Tuple sample period ints to be randomly sampled from (1, 2, 3)
-        sample_period = np.random.choice(
-            [x for x in self.sample_rate if row["frames"] > x * self.n_frames]
-        )
-        vid, vid_shape, fps = read_video(
-            filepath,
-            self.n_frames,
-            res=self.resize_res,
-            zoom=self.zoom,
-            sample_period=sample_period,
-            random_start=self.random_start,
-        )
-
-    vid = torch.from_numpy(vid)
-    vid = torch.movedim(vid / 255, -1, 0).to(torch.float32)
-
-    return vid
-def process_manifest(self, manifest):
-    manifest = super().process_manifest(manifest)
-    if self.view is not None:
-        if not isinstance(self.view, (List, Tuple)):
-            self.view = [self.view]
-        m = np.zeros(len(manifest), dtype=bool)
-        for v in self.view:
-            m |= manifest[v] >= self.view_threshold
-        manifest = manifest[m]
-    if "frames" in self.manifest.columns:
-        if isinstance(self.sample_rate, int):  # Single sample period
-            min_length = self.sample_rate * self.n_frames
-            manifest = manifest[manifest["frames"] >= min_length]
-        elif isinstance(self.sample_rate, float):  # Target fps
-            target_fps = self.sample_rate
-            manifest = manifest[
-                manifest["frames"]
-                > self.n_frames * manifest["fps"] / target_fps + 1
-            ]
-        else:  # Multiple possible sample periods
-            min_length = min(self.sample_rate) * self.n_frames
-            manifest = manifest[manifest["frames"] >= min_length]
-    if "filename" not in manifest.columns and "file_uid" in manifest.columns:
-        manifest["filename"] = manifest["file_uid"] + ".avi"
-    return manifest
-def __len__(self):
-    return len(self.manifest)
 class EchoDataset(Dataset):
     def __init__(
         self,
@@ -176,7 +107,11 @@ class EchoDataset(Dataset):
         verify_existing: bool = True,
         drop_na_labels: bool = True,
         n_frames: int = 16,
-        sample_rate: Union[int, Tuple[int], float] = 2
+        random_start: bool = False,
+        sample_rate: Union[int, Tuple[int], float] = 2,
+        verbose: bool = True,
+        resize_res: Tuple[int] = None,
+        zoom: float = 0
     ):
         self.verbose = verbose
         self.data_path = Path(data_path)
@@ -184,8 +119,11 @@ class EchoDataset(Dataset):
         self.verify_existing = verify_existing
         self.drop_na_labels = drop_na_labels
         self.n_frames = n_frames
+        self.random_start = random_start
         self.sample_rate = sample_rate
         self.labels = labels
+        self.resize_res = resize_res
+        self.zoom = zoom
         if self.labels is None and self.verbose:
             print(
                 "No label column names were provided, only filenames and inputs will be returned."
@@ -262,13 +200,78 @@ class EchoDataset(Dataset):
         if self.labels is not None and not torch.is_tensor(labels):
             labels = torch.tensor(labels, dtype=torch.float32)
 
-        extra_inputs = row[self.extra_inputs] if self.extra_inputs is not None else None
-        if self.extra_inputs is not None and not torch.is_tensor(extra_inputs):
-            output["extra_inputs"] = torch.tensor(extra_inputs, dtype=torch.float32)
-
         output["labels"] = labels
 
         return output
+   
+    def read_file(self, filepath, row=None):
+
+        if isinstance(self.sample_rate, int):  # Simple single int sample period
+            vid, vid_shape, fps = read_video(
+                filepath,
+                self.n_frames,
+                res=self.resize_res,
+                zoom=self.zoom,
+                sample_period=self.sample_rate,
+                random_start=self.random_start,
+            )
+        elif isinstance(self.sample_rate, float):  # Fixed fps
+            target_fps = self.sample_rate
+            fps = row["fps"]
+
+            vid, vid_shape, fps = read_video(
+                filepath,
+                self.n_frames,
+                1,
+                fps=row["fps"],
+                out_fps=target_fps,
+                frame_interpolation=self.interpolate_frames,
+                random_start=self.random_start,
+                res=self.resize_res,
+                zoom=self.zoom,
+            )
+        else:  # Tuple sample period ints to be randomly sampled from (1, 2, 3)
+            sample_period = np.random.choice(
+                [x for x in self.sample_rate if row["frames"] > x * self.n_frames]
+            )
+            vid, vid_shape, fps = read_video(
+                filepath,
+                self.n_frames,
+                res=self.resize_res,
+                zoom=self.zoom,
+                sample_period=sample_period,
+                random_start=self.random_start,
+            )
+        vid = torch.from_numpy(vid)
+        vid = torch.movedim(vid / 255, -1, 0).to(torch.float32)
+        return vid
+
+    def process_manifest(self, manifest):
+        manifest = super().process_manifest(manifest)
+        if self.view is not None:
+            if not isinstance(self.view, (List, Tuple)):
+                self.view = [self.view]
+            m = np.zeros(len(manifest), dtype=bool)
+            for v in self.view:
+                m |= manifest[v] >= self.view_threshold
+            manifest = manifest[m]
+        if "frames" in self.manifest.columns:
+            if isinstance(self.sample_rate, int):  # Single sample period
+                min_length = self.sample_rate * self.n_frames
+                manifest = manifest[manifest["frames"] >= min_length]
+            elif isinstance(self.sample_rate, float):  # Target fps
+                target_fps = self.sample_rate
+                manifest = manifest[
+                    manifest["frames"]
+                    > self.n_frames * manifest["fps"] / target_fps + 1
+                ]
+            else:  # Multiple possible sample periods
+                min_length = min(self.sample_rate) * self.n_frames
+                manifest = manifest[manifest["frames"] >= min_length]
+        if "filename" not in manifest.columns and "file_uid" in manifest.columns:
+            manifest["filename"] = manifest["file_uid"] + ".avi"
+        return manifest
+
 class ClassificationModel(pl.LightningModule):
     def __init__(
         self,
@@ -290,6 +293,9 @@ class ClassificationModel(pl.LightningModule):
         batch["labels"] = batch["labels"].long()
         batch["primary_input"] = batch["primary_input"].float()
         return batch
+
+    def forward(self, inputs, target):
+        return self.model(inputs, target)
 
 def MR_preds_cm(test_predictions):
     cols = ['Control_preds','Mild_preds','Moderate_preds','Severe_preds']
