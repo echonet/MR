@@ -117,20 +117,12 @@ class EchoDataset(Dataset):
         self.data_path = Path(data_path)
         self.split = split
         self.verify_existing = verify_existing
-        self.drop_na_labels = drop_na_labels
         self.n_frames = n_frames
         self.random_start = random_start
         self.sample_rate = sample_rate
-        self.labels = labels
         self.resize_res = resize_res
         self.zoom = zoom
-        if self.labels is None and self.verbose:
-            print(
-                "No label column names were provided, only filenames and inputs will be returned."
-            )
-        if (self.labels is not None) and isinstance(self.labels, str):
-            self.labels = [self.labels]
-
+       
         # Read manifest file
         if manifest_path is not None:
             self.manifest_path = Path(manifest_path)
@@ -170,20 +162,7 @@ class EchoDataset(Dataset):
                 f"self.verify_existing is set to False, so it's possible for the manifest to contain filenames which are not present in {data_path}"
             )
 
-        # Make sure that there are no NAN labels
-        if (self.labels is not None) and self.drop_na_labels:
-            old_len = len(self.manifest)
-            self.manifest = self.manifest.dropna(subset=self.labels)
-            new_len = len(self.manifest)
-            if self.verbose:
-                print(
-                    f"{old_len - new_len} examples contained NaN value(s) in their labels and were dropped."
-                )
-        elif (self.labels is not None) and (not self.drop_na_labels):
-            print(
-                "self.drop_na_labels is set to False, so it's possible for the manifest to contain NaN-valued labels."
-            )
-
+        
     def __len__(self):
         return len(self.manifest)
 
@@ -195,13 +174,7 @@ class EchoDataset(Dataset):
 
         # self.read_file expected in child classes
         primary_input = self.read_file(self.data_path / filename, row)
-
-        labels = row[self.labels] if self.labels is not None else None
-        if self.labels is not None and not torch.is_tensor(labels):
-            labels = torch.tensor(labels, dtype=torch.float32)
-
-        output["labels"] = labels
-
+        output["primary_input"] = primary_input
         return output
    
     def read_file(self, filepath, row=None):
@@ -246,56 +219,31 @@ class EchoDataset(Dataset):
         vid = torch.movedim(vid / 255, -1, 0).to(torch.float32)
         return vid
 
-    def process_manifest(self, manifest):
-        manifest = super().process_manifest(manifest)
-        if self.view is not None:
-            if not isinstance(self.view, (List, Tuple)):
-                self.view = [self.view]
-            m = np.zeros(len(manifest), dtype=bool)
-            for v in self.view:
-                m |= manifest[v] >= self.view_threshold
-            manifest = manifest[m]
-        if "frames" in self.manifest.columns:
-            if isinstance(self.sample_rate, int):  # Single sample period
-                min_length = self.sample_rate * self.n_frames
-                manifest = manifest[manifest["frames"] >= min_length]
-            elif isinstance(self.sample_rate, float):  # Target fps
-                target_fps = self.sample_rate
-                manifest = manifest[
-                    manifest["frames"]
-                    > self.n_frames * manifest["fps"] / target_fps + 1
-                ]
-            else:  # Multiple possible sample periods
-                min_length = min(self.sample_rate) * self.n_frames
-                manifest = manifest[manifest["frames"] >= min_length]
-        if "filename" not in manifest.columns and "file_uid" in manifest.columns:
-            manifest["filename"] = manifest["file_uid"] + ".avi"
-        return manifest
 
-class ClassificationModel(pl.LightningModule):
-    def __init__(
-        self,
-        model,
-        index_labels=None,
-        save_predictions_path=None,
-    ):
-        super().__init__()
-        self.m = model
-        self.labels = index_labels
-        if self.labels is not None and isinstance(self.labels, str):
-            self.labels = [self.labels]
-        if save_predictions_path is not None and isinstance(save_predictions_path, str):
-            save_predictions_path = Path(save_predictions_path)
-        else:
-            save_predictions_path = Path(os.path.dirname(os.path.abspath(__file__)))
-        self.save_predictions_path = save_predictions_path
-    def prepare_batch(self, batch):
-        batch["labels"] = batch["labels"].long()
-        batch["primary_input"] = batch["primary_input"].float()
-        return batch
+# class ClassificationModel(pl.LightningModule):
+#     def __init__(
+#         self,
+#         model,
+#         index_labels=None,
+#         save_predictions_path=None,
+#     ):
+#         super().__init__()
+#         self.m = model
+#         self.labels = index_labels
+#         if self.labels is not None and isinstance(self.labels, str):
+#             self.labels = [self.labels]
+#         if save_predictions_path is not None and isinstance(save_predictions_path, str):
+#             save_predictions_path = Path(save_predictions_path)
+#         else:
+#             save_predictions_path = Path(os.path.dirname(os.path.abspath(__file__)))
+#         self.save_predictions_path = save_predictions_path
+#     def prepare_batch(self, batch):
+#         batch["labels"] = batch["labels"].long()
+#         batch["primary_input"] = batch["primary_input"].float()
+#         return batch
 
-    def forward(self, inputs, target):
-        return self.model(inputs, target)
+#     def forward(self, inputs, target):
+#         return self.model(inputs, target)
 
 def MR_preds_cm(test_predictions):
     cols = ['Control_preds','Mild_preds','Moderate_preds','Severe_preds']
