@@ -220,31 +220,6 @@ class EchoDataset(Dataset):
         return vid
 
 
-# class ClassificationModel(pl.LightningModule):
-#     def __init__(
-#         self,
-#         model,
-#         index_labels=None,
-#         save_predictions_path=None,
-#     ):
-#         super().__init__()
-#         self.m = model
-#         self.labels = index_labels
-#         if self.labels is not None and isinstance(self.labels, str):
-#             self.labels = [self.labels]
-#         if save_predictions_path is not None and isinstance(save_predictions_path, str):
-#             save_predictions_path = Path(save_predictions_path)
-#         else:
-#             save_predictions_path = Path(os.path.dirname(os.path.abspath(__file__)))
-#         self.save_predictions_path = save_predictions_path
-#     def prepare_batch(self, batch):
-#         batch["labels"] = batch["labels"].long()
-#         batch["primary_input"] = batch["primary_input"].float()
-#         return batch
-
-#     def forward(self, inputs, target):
-#         return self.model(inputs, target)
-
 def MR_preds_cm(test_predictions):
     cols = ['Control_preds','Mild_preds','Moderate_preds','Severe_preds']
 
@@ -364,3 +339,4 @@ def bootstrap_ppv_f1_recall(x,y):
     print('PPV is ' + str(ppv_preds))
     print('F1 is ' + str(f1_preds))
     print('Recall is ' + str(recall_preds))
+
