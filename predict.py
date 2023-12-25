@@ -112,7 +112,7 @@ with torch.no_grad():
     df_preds = pd.DataFrame(
         data=[filenames, control_preds, mild_preds, moderate_preds, severe_preds],
         columns=[
-            "filenames",
+            "filename",
             "Control_preds",
             "Mild_preds",
             "Moderate_preds",
