@@ -14,6 +14,12 @@ from matplotlib import pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
+if __name__ == "__main__":
+    freeze_support()
+    if os.name == 'nt':
+        os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
+        print('Windows detected!')
+
 with torch.no_grad():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -24,8 +30,8 @@ with torch.no_grad():
 
     CLASS_LIST = ["Control", "Mild", "Moderate", "Severe"]
 
-    manifest_path = "/workspace/data/drives/sde/amey_mitral_regurg_weights/MR_manifest_nov21_resplit/data/test_set_blank.csv"
-    data_path = "/workspace/data/drives/sda/amey_datasets/mitral_regurg_and_stenosis_112x112_dataset"
+    manifest_path = r'C:\Users\Remote\Documents\Amey\MR\manifest_for_testing_ext_val_repo.csv'
+    data_path = r'D:\amey\stanford_echos_MR_ext_val'
 
     # parser = argparse.ArgumentParser(description='Run inference on dataset')
     # parser.add_argument('--MR_label_col', type=str, help='Name of MR ground truth label column in manifest; drops cases with NaN ground truth')
@@ -77,9 +83,7 @@ with torch.no_grad():
 
     # ## Run MR prediction model
 
-    MR_weights_path = (
-        "/workspace/Amey/MR/MR_manifest_nov_21_resplit_lowest_loss_epoch_11.pt"
-    )
+    MR_weights_path = ("MR_manifest_nov_21_resplit_lowest_loss_epoch_11.pt")
 
     test_ds = EchoDataset(
         split="test",
