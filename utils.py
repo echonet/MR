@@ -18,7 +18,12 @@ import os
 from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
-
+import math
+import seaborn as sns
+import numpy as np
+from matplotlib import pyplot as plt
+from tqdm import tqdm
+from matplotlib import rc
 
 def read_video(
     path: Union[str, Path],
@@ -219,7 +224,6 @@ class EchoDataset(Dataset):
         vid = torch.movedim(vid / 255, -1, 0).to(torch.float32)
         return vid
 
-
 def MR_preds_cm(test_predictions):
     cols = ['Control_preds','Mild_preds','Moderate_preds','Severe_preds']
 
@@ -278,11 +282,8 @@ def MR_preds_cm(test_predictions):
     plt.xticks(fontsize = 20)
     plt.yticks(fontsize = 20, rotation = 0)
 
-    # for _, spine in res.spines.items(): 
-    #     spine.set_visible(True) 
-    #     spine.set_linewidth(5)
-        
     plt.show()
+
 def bootstrap(x,y):
     y_total,yhat_total = x,y
     fpr_boot = []
@@ -305,6 +306,7 @@ def bootstrap(x,y):
     higher_point = round(np.percentile(aucs,97.5),3)
     preds = [lower_point, higher_point]
     return(preds)
+
 def bootstrap_ppv_f1_recall(x,y):
     y_total,yhat_total = x,y
     ppv_list = []
@@ -336,7 +338,126 @@ def bootstrap_ppv_f1_recall(x,y):
     f1_preds = [lower_point_f1, higher_point_f1]
     recall_preds = [lower_point_recall, higher_point_recall]
     
-    print('PPV is ' + str(ppv_preds))
-    print('F1 is ' + str(f1_preds))
-    print('Recall is ' + str(recall_preds))
+    return ppv_preds, f1_preds, recall_preds
+
+def sigmoid(x):
+    sig = 1 / (1 + math.exp(-x))
+    return sig
+
+def make_roc_curve(test_predictions):
+
+    fpr_severe, tpr_severe, thresholds = metrics.roc_curve((test_predictions.final_class == 'Severe') * 1, 
+                                            test_predictions.Severe_preds)
+    fpr_mod_severe, tpr_mod_severe, thresholds = metrics.roc_curve((test_predictions.final_class.isin(
+        ['Moderate','Severe']) * 1), test_predictions[['Moderate_preds','Severe_preds']].max(axis = 1))
+    scaling_factor = 1.5
+    fig = plt.figure(figsize=(8*scaling_factor,8*scaling_factor))
+    lw = 2*scaling_factor
+    ls = 'dashed'
+    ext_val_color = 'C2'
+
+    ## Make severe a solid line
+    ## Make moderate to severe a dashed line
+
+    plt.plot(fpr_severe, tpr_severe, linewidth = lw, color = ext_val_color, label = ('Severe - AUC: ' + str(round(metrics.auc(fpr_severe, tpr_severe),3))))
+    plt.plot(fpr_mod_severe, tpr_mod_severe, linestyle = ls, linewidth = lw, color = ext_val_color, label = '≥ Moderate - AUC: ' + str(round(metrics.auc(fpr_mod_severe, tpr_mod_severe),4))[:-1])
+    plt.xlabel('1- Specificity', fontsize = 20*scaling_factor, rotation = 0, labelpad=10)
+    plt.ylabel('Sensitivity', fontsize = 20*scaling_factor, rotation = 90, labelpad=15)
+    plt.xticks(fontsize = 17*scaling_factor)
+    plt.yticks(fontsize = 17*scaling_factor)
+
+    legend = plt.legend(title = "Severity", fontsize = 15*1.5)
+    plt.setp(legend.get_title(),fontsize= 17*1.5)
+
+def make_cm(test_predictions):
+    ordered_indices = ['Control','Mild','Moderate','Severe']
+    cm = metrics.confusion_matrix(test_predictions['final_class'], test_predictions['predicted'])
+    cm = pd.DataFrame(cm, columns = np.sort(test_predictions.final_class.unique()),
+                    index = np.sort(test_predictions.final_class.unique()))
+    plt.figure(figsize=(10,10))
+    sns.set(font_scale=2)
+
+    # cm_try = cm/cm.sum(axis = 1)
+    cm_try = cm.copy()
+    cm_try.loc['Control'] = cm.loc['Control']/cm.loc['Control'].sum()
+    cm_try.loc['Mild'] = cm.loc['Mild']/cm.loc['Mild'].sum()
+    cm_try.loc['Moderate'] = cm.loc['Moderate']/cm.loc['Moderate'].sum()
+    cm_try.loc['Severe'] = cm.loc['Severe']/cm.loc['Severe'].sum()
+
+    cm_try = cm_try.rename(columns = {'Control':'None'}, index = {'Control':'None'})
+
+    res = sns.heatmap(cm_try, annot=cm.to_numpy(), cmap='Greens', linewidths = 5, linecolor='black',fmt=',d',
+            vmin = 0, vmax = cm_try.to_numpy().max(), cbar = False, square = True)   
+        
+    # Drawing the frame 
+    res.axhline(y = 0, color='k',linewidth = 10) 
+    res.axhline(y = cm.shape[1], color = 'k', 
+                linewidth = 10) 
+    
+    res.axvline(x = 0, color = 'k', 
+                linewidth = 10) 
+    
+    res.axvline(x = cm.shape[0],  color = 'k', linewidth = 10) 
+    
+    # show plot 
+    plt.title('Mitral Regurgitation Classification\n', fontsize = 25, fontweight = 'bold')
+    plt.ylabel('Actual  ', fontsize = 23, rotation = 0, fontweight = 'bold')
+    plt.xlabel('\nPredicted', fontsize = 23, fontweight = 'bold')
+    plt.xticks(fontsize = 20)
+    plt.yticks(fontsize = 20, rotation = 0)
+        
+    plt.show()
+
+def get_stats(manifest):
+    fpr_severe, tpr_severe, thresholds = metrics.roc_curve((manifest.final_class == 'Severe') * 1, 
+                                            manifest.Severe_preds)
+    severe_auc = str(round(metrics.auc(fpr_severe, tpr_severe), 3))
+    severe_auc_range = str(bootstrap((manifest.final_class == 'Severe') * 1, manifest.Severe_preds))
+
+    fpr_mod_severe, tpr_mod_severe, thresholds = metrics.roc_curve((manifest.final_class.isin(
+        ['Moderate','Severe']) * 1), manifest[['Moderate_preds','Severe_preds']].max(axis = 1))
+
+    mod_severe_auc = str(round(metrics.auc(fpr_mod_severe, tpr_mod_severe), 3))
+    mod_severe_auc_range = str(bootstrap(manifest.final_class.isin(
+        ['Moderate','Severe']) * 1, manifest[
+        ['Moderate_preds','Severe_preds']].max(axis = 1)))
+
+    print('Severe MR Stats\n' )
+    print('Severe MR AUC is ' + severe_auc + " " + severe_auc_range)
+    
+    severe_ppv_range, severe_f1_range, severe_recall_range  = bootstrap_ppv_f1_recall(manifest['severe_binary'], manifest['severe_binary_pred'])
+    severe_npv_range, _, _  = bootstrap_ppv_f1_recall(manifest['not_severe_binary'], manifest['not_severe_binary_pred'])
+
+
+    print('Severe PPV is ' + str(round(metrics.precision_score(manifest['severe_binary'], manifest['severe_binary_pred'],
+                       labels = ['Severe']),3)) + " " + str(severe_ppv_range))
+
+    print('Severe NPV is ' + str(round(metrics.precision_score(manifest['not_severe_binary'], manifest['not_severe_binary_pred'],
+                       labels = ['Severe']),3)) + " " + str(severe_npv_range))
+
+    print('Severe Recall is ' + str(round(metrics.recall_score(manifest['severe_binary'], manifest['severe_binary_pred'],
+                       labels = ['Severe']),3)) + " " + str(severe_recall_range))
+
+    print('Severe F1-Score is ' + str(round(metrics.f1_score(manifest['severe_binary'], manifest['severe_binary_pred'],
+                       labels = ['Severe']),3)) + " " + str(severe_f1_range) + '\n\n')
+
+
+    print('Moderate/Severe MR Stats \n' )
+    print('Moderate/Severe MR AUC is ' + mod_severe_auc + ' ' + mod_severe_auc_range)
+
+    mod_severe_ppv_range, mod_severe_f1_range, mod_severe_recall_range  = bootstrap_ppv_f1_recall(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'])
+    mod_severe_npv_range, _, _  = bootstrap_ppv_f1_recall(manifest['control_mild_binary'], manifest['control_mild_binary_pred'])
+
+    print('Moderate/Severe PPV is ' + str(round(metrics.precision_score(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'],
+                       labels = ['Moderate/Severe']),3)) + " " + str(mod_severe_ppv_range))
+
+    print('Moderate/Severe NPV is ' + str(round(metrics.precision_score(manifest['control_mild_binary'], manifest['control_mild_binary_pred'],
+                       labels = ['Moderate/Severe']),3)) + " " + str(mod_severe_npv_range))
+
+    print('Moderate/Severe Recall is ' + str(round(metrics.recall_score(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'],
+                       labels = ['Moderate/Severe']),3)) + " " + str(mod_severe_recall_range))
+
+    print('Moderate/Severe F1-Score is ' + str(round(metrics.f1_score(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'],
+                 labels = ['Moderate/Severe']),3)) + " " + str(mod_severe_f1_range))
+
 
