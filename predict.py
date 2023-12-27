@@ -27,7 +27,7 @@ with torch.no_grad():
     data_path = r'D:\amey\stanford_echos_MR_ext_val'
 
     # parser = argparse.ArgumentParser(description='Run inference on dataset')
-    # parser.add_argument('--MR_label_col', type=str, help='Name of MR ground truth label column in manifest; drops cases with NaN ground truth')
+    # parser.add_argument('--MR_label_col', type=str, help='Name of MR ground truth label column in manifest; should have values of one of ["Control", "Mild", "Moderate", "Severe"]')
     # parser.add_argument('--manifest_path', type=str, help='Path to Manifest File')
     # parser.add_argument('--data_path', type=str, help='Path to Normalized EKGs')
     # parser.add_argument('--save_predictions_path', type=str, default='./')
@@ -64,8 +64,7 @@ with torch.no_grad():
         filenames.extend(batch["filename"])
         predictions.extend(preds.detach().cpu().squeeze(dim = 1))
     df_preds = pd.DataFrame({'filename': filenames, 'preds': predictions})
-    # df_preds = pd.DataFrame(data=[filenames, predictions], columns=["filename", "preds"])
-    manifest = manifest.merge(df_preds, on="filename", how="inner")
+    manifest = manifest.merge(df_preds, on="filename", how="inner").drop_duplicates('filename')
     manifest.preds = manifest.preds.apply(sigmoid)
     manifest = manifest[manifest.preds > 0.519]
     manifest.to_csv(
@@ -116,28 +115,6 @@ with torch.no_grad():
     test_predictions = pd.read_csv('MR_model_predictions')
     test_predictions = test_predictions.drop_duplicates('filename')
     test_predictions.index = range(0,len(test_predictions))
-
-    cols = ['Control_preds','Mild_preds','Moderate_preds','Severe_preds']
-
-    for i in cols:
-        manifest[i] = manifest[i].apply(sigmoid)
-
-    manifest['predicted'] = manifest[cols].idxmax(axis = 1).astype(str).str.slice(stop = -6)
-
-    manifest['severe_binary'] = (manifest['final_class'].isin(['Severe'])*1)
-    manifest['severe_binary_pred'] = (manifest['predicted'].isin(['Severe'])*1)
-    manifest['mod_severe_binary'] = (manifest['final_class'].isin(['Moderate','Severe'])*1)
-    manifest['mod_severe_binary_pred'] = (manifest['predicted'].isin(['Moderate','Severe'])*1)
-    manifest['control_mild_binary'] = (manifest['final_class'].isin(['Control','Mild'])*1)
-    manifest['control_mild_binary_pred'] = (manifest['predicted'].isin(['Control','Mild'])*1)
-    manifest['moderate_binary'] = (manifest['final_class'].isin(['Moderate'])*1)
-    manifest['moderate_binary_pred'] = (manifest['predicted'].isin(['Moderate'])*1)
-
-    manifest['not_severe_binary'] = (~manifest['final_class'].isin(['Severe'])*1)
-    manifest['not_severe_binary_pred'] = (~manifest['predicted'].isin(['Severe'])*1)
-
-    manifest['Mod_Severe_preds'] = manifest[
-        ['Moderate_preds','Severe_preds']].max(axis = 1, skipna = True)
 
     manifest.to_csv(
         Path(os.path.dirname(os.path.abspath(__file__))) / Path("MR_model_predictions.csv"),

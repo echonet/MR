@@ -224,7 +224,7 @@ class EchoDataset(Dataset):
         vid = torch.movedim(vid / 255, -1, 0).to(torch.float32)
         return vid
 
-def MR_preds_cm(test_predictions):
+def process_preds(test_predictions):
     cols = ['Control_preds','Mild_preds','Moderate_preds','Severe_preds']
 
     for i in cols:
@@ -245,6 +245,9 @@ def MR_preds_cm(test_predictions):
     test_predictions['Mod_Severe_preds'] = test_predictions[
         ['Moderate_preds','Severe_preds']].max(axis = 1, skipna = True)
 
+    return(test_predictions)
+
+def MR_preds_cm(test_predictions):
     cm = metrics.confusion_matrix(test_predictions['final_class'], test_predictions['predicted'])
 
     cm = pd.DataFrame(cm, columns = np.sort(test_predictions.final_class.unique()),
@@ -430,7 +433,7 @@ def get_stats(manifest):
 
     mod_severe_auc = str(round(metrics.auc(fpr_mod_severe, tpr_mod_severe), 3))
 
-    print('Severe MR Stats\n' )
+    print('\nSevere MR Stats' )
     print('Severe MR AUC is ' + severe_auc + " " + severe_auc_range)
     
 
@@ -448,7 +451,7 @@ def get_stats(manifest):
                        labels = ['Severe']),3)) + " " + str(severe_f1_range) + '\n\n')
 
 
-    print('Moderate/Severe MR Stats \n' )
+    print('Moderate/Severe MR Stats' )
     print('Moderate/Severe MR AUC is ' + mod_severe_auc + ' ' + mod_severe_auc_range)
 
     print('Moderate/Severe PPV is ' + str(round(metrics.precision_score(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'],
