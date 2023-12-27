@@ -409,24 +409,30 @@ def make_cm(test_predictions):
     plt.show()
 
 def get_stats(manifest):
+    severe_auc_range = str(bootstrap((manifest.final_class == 'Severe') * 1, manifest.Severe_preds))
+    
+    mod_severe_auc_range = str(bootstrap(manifest.final_class.isin(
+        ['Moderate','Severe']) * 1, manifest[
+        ['Moderate_preds','Severe_preds']].max(axis = 1)))
+    
+    severe_ppv_range, severe_f1_range, severe_recall_range  = bootstrap_ppv_f1_recall(manifest['severe_binary'], manifest['severe_binary_pred'])
+    severe_npv_range, _, _  = bootstrap_ppv_f1_recall(manifest['not_severe_binary'], manifest['not_severe_binary_pred'])
+
+    mod_severe_ppv_range, mod_severe_f1_range, mod_severe_recall_range  = bootstrap_ppv_f1_recall(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'])
+    mod_severe_npv_range, _, _  = bootstrap_ppv_f1_recall(manifest['control_mild_binary'], manifest['control_mild_binary_pred'])
+
     fpr_severe, tpr_severe, thresholds = metrics.roc_curve((manifest.final_class == 'Severe') * 1, 
                                             manifest.Severe_preds)
     severe_auc = str(round(metrics.auc(fpr_severe, tpr_severe), 3))
-    severe_auc_range = str(bootstrap((manifest.final_class == 'Severe') * 1, manifest.Severe_preds))
 
     fpr_mod_severe, tpr_mod_severe, thresholds = metrics.roc_curve((manifest.final_class.isin(
         ['Moderate','Severe']) * 1), manifest[['Moderate_preds','Severe_preds']].max(axis = 1))
 
     mod_severe_auc = str(round(metrics.auc(fpr_mod_severe, tpr_mod_severe), 3))
-    mod_severe_auc_range = str(bootstrap(manifest.final_class.isin(
-        ['Moderate','Severe']) * 1, manifest[
-        ['Moderate_preds','Severe_preds']].max(axis = 1)))
 
     print('Severe MR Stats\n' )
     print('Severe MR AUC is ' + severe_auc + " " + severe_auc_range)
     
-    severe_ppv_range, severe_f1_range, severe_recall_range  = bootstrap_ppv_f1_recall(manifest['severe_binary'], manifest['severe_binary_pred'])
-    severe_npv_range, _, _  = bootstrap_ppv_f1_recall(manifest['not_severe_binary'], manifest['not_severe_binary_pred'])
 
 
     print('Severe PPV is ' + str(round(metrics.precision_score(manifest['severe_binary'], manifest['severe_binary_pred'],
@@ -444,9 +450,6 @@ def get_stats(manifest):
 
     print('Moderate/Severe MR Stats \n' )
     print('Moderate/Severe MR AUC is ' + mod_severe_auc + ' ' + mod_severe_auc_range)
-
-    mod_severe_ppv_range, mod_severe_f1_range, mod_severe_recall_range  = bootstrap_ppv_f1_recall(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'])
-    mod_severe_npv_range, _, _  = bootstrap_ppv_f1_recall(manifest['control_mild_binary'], manifest['control_mild_binary_pred'])
 
     print('Moderate/Severe PPV is ' + str(round(metrics.precision_score(manifest['mod_severe_binary'], manifest['mod_severe_binary_pred'],
                        labels = ['Moderate/Severe']),3)) + " " + str(mod_severe_ppv_range))
