@@ -6,7 +6,7 @@ import sys
 import argparse
 from pathlib import Path
 import os
-from utils import bootstrap_ppv_f1_recall, MR_preds_cm, sigmoid, bootstrap, EchoDataset
+from utils import bootstrap_ppv_f1_recall, MR_preds_cm, sigmoid, bootstrap, EchoDataset, process_preds
 from sklearn import metrics
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -112,12 +112,13 @@ with torch.no_grad():
 
     manifest = manifest.drop_duplicates('filename')
     manifest.index = range(0,len(manifest))
+    manifest = process_preds(manifest)
 
     manifest.to_csv(
         Path(os.path.dirname(os.path.abspath(__file__))) / Path("MR_model_predictions.csv"),
         index=False,
     )
 
-    print('success!!!')
+    print('Inference Complete. Please run the the notebook analyze_predictions.ipynb to analyze the results.')
 
     
