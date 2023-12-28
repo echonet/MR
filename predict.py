@@ -109,15 +109,18 @@ with torch.no_grad():
     d = {'filename':filenames,'Control_preds':control_preds,'Mild_preds':mild_preds,'Moderate_preds':moderate_preds,'Severe_preds':severe_preds}
     df_preds = pd.DataFrame(d)
     manifest = manifest.merge(df_preds, on="filename", how="inner")
-
     manifest = manifest.drop_duplicates('filename')
     manifest.index = range(0,len(manifest))
-    manifest = process_preds(manifest)
+    manifest_processed = process_preds(manifest)
 
-    manifest.to_csv(
-        Path(os.path.dirname(os.path.abspath(__file__))) / Path("MR_model_predictions.csv"),
+    manifest_processed.to_csv(
+        Path(os.path.dirname(os.path.abspath(__file__))) / Path("MR_model_predictions_non_anonymized.csv"),
         index=False,
     )
+
+    process_preds(manifest[['filename','final_class','final_class_label','Control_preds','Mild_preds',
+    'Moderate_preds','Severe_preds']]).to_csv(Path(os.path.dirname(os.path.abspath(__file__))
+    ) / Path('MR_model_predictions_anonymized.csv'))
 
     print('Inference Complete. Please run the the notebook analyze_predictions.ipynb to analyze the results.')
 
