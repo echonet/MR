@@ -23,21 +23,19 @@ with torch.no_grad():
 
     CLASS_LIST = ["Control", "Mild", "Moderate", "Severe"]
 
-    manifest_path = r'stanford_view_classified_iteration_3_vc_preds_removed.csv'
-    data_path = r'D:\amey\stanford_echos_MR_ext_val'
+    parser = argparse.ArgumentParser(description='Run inference on dataset')
+    parser.add_argument('--MR_label_col', type=str, help='Name of MR ground truth label column in manifest; should have values of one of ["Control", "Mild", "Moderate", "Severe"]')
+    parser.add_argument('--manifest_path', type=str, help='Path to Manifest File')
+    parser.add_argument('--data_path', type=str, help='Path to Normalized EKGs')
 
-    # parser = argparse.ArgumentParser(description='Run inference on dataset')
-    # parser.add_argument('--MR_label_col', type=str, help='Name of MR ground truth label column in manifest; should have values of one of ["Control", "Mild", "Moderate", "Severe"]')
-    # parser.add_argument('--manifest_path', type=str, help='Path to Manifest File')
-    # parser.add_argument('--data_path', type=str, help='Path to Normalized EKGs')
-    # parser.add_argument('--save_predictions_path', type=str, default='./')
-    # args = parser.parse_args()
-    # data_path = args.data_path
-    # manifest_path = args.manifest_path
+    args = parser.parse_args()
+    data_path = args.data_path
+    manifest_path = args.manifest_path
 
     manifest = pd.read_csv(manifest_path)
     manifest["split"] = "test"
-    manifest['final_class'] = manifest['MR_label_col']
+    manifest['final_class'] = manifest[args.MR_label_col]
+    manifest = manifest[manifest.final_class.isin(CLASS_LIST)]
     manifest['final_class_label'] = manifest.final_class.apply(CLASS_LIST.index)
     manifest.to_csv(manifest_path, index = False)
 
