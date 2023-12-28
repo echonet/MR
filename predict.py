@@ -110,13 +110,14 @@ with torch.no_grad():
     df_preds = pd.DataFrame(d)
     manifest = manifest.merge(df_preds, on="filename", how="inner")
 
-    test_predictions = pd.read_csv('MR_model_predictions')
-    test_predictions = test_predictions.drop_duplicates('filename')
-    test_predictions.index = range(0,len(test_predictions))
+    manifest = manifest.drop_duplicates('filename')
+    manifest.index = range(0,len(manifest))
 
     manifest.to_csv(
         Path(os.path.dirname(os.path.abspath(__file__))) / Path("MR_model_predictions.csv"),
         index=False,
     )
+
+    print('success!!!')
 
     
