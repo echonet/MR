@@ -25,6 +25,35 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 from matplotlib import rc
 
+
+def crop_and_scale(
+    img: ArrayLike, res: Tuple[int], interpolation=cv2.INTER_CUBIC, zoom: float = 0.0
+) -> ArrayLike:
+    """Takes an image, a resolution, and a zoom factor as input, returns the
+    zoomed/cropped image."""
+    in_res = (img.shape[1], img.shape[0])
+    r_in = in_res[0] / in_res[1]
+    r_out = res[0] / res[1]
+
+    # Crop to correct aspect ratio
+    if r_in > r_out:
+        padding = int(round((in_res[0] - r_out * in_res[1]) / 2))
+        img = img[:, padding:-padding]
+    if r_in < r_out:
+        padding = int(round((in_res[1] - in_res[0] / r_out) / 2))
+        img = img[padding:-padding]
+
+    # Apply zoom
+    if zoom != 0:
+        pad_x = round(int(img.shape[1] * zoom))
+        pad_y = round(int(img.shape[0] * zoom))
+        img = img[pad_y:-pad_y, pad_x:-pad_x]
+
+    # Resize image
+    img = cv2.resize(img, res, interpolation=interpolation)
+
+    return img
+
 def read_video(
     path: Union[str, Path],
     n_frames: int = None,
@@ -223,6 +252,45 @@ class EchoDataset(Dataset):
         vid = torch.from_numpy(vid)
         vid = torch.movedim(vid / 255, -1, 0).to(torch.float32)
         return vid
+
+    def process_manifest_one(self, manifest: DataFrame) -> DataFrame:
+        if "mrn" in self.manifest.columns:
+            self.manifest["mrn"] = self.manifest["mrn"].apply(zero_pad_20_digits)
+        if "study_date" in self.manifest.columns:
+            self.manifest["study_date"] = pd.to_datetime(self.manifest["study_date"])
+        if "dob" in self.manifest.columns:
+            self.manifest["dob"] = pd.to_datetime(self.manifest["dob"])
+        if ("study_date" in self.manifest.columns) and ("dob" in self.manifest.columns):
+            self.manifest["study_age"] = (
+                self.manifest["study_date"] - self.manifest["dob"]
+            ) / np.timedelta64(1, "Y")
+        return manifest
+
+    def process_manifest(self, manifest):
+        manifest = process_manifest_one(manifest)
+        if self.view is not None:
+            if not isinstance(self.view, (List, Tuple)):
+                self.view = [self.view]
+            m = np.zeros(len(manifest), dtype=bool)
+            for v in self.view:
+                m |= manifest[v] >= self.view_threshold
+            manifest = manifest[m]
+        if "frames" in self.manifest.columns:
+            if isinstance(self.sample_rate, int):  # Single sample period
+                min_length = self.sample_rate * self.n_frames
+                manifest = manifest[manifest["frames"] >= min_length]
+            elif isinstance(self.sample_rate, float):  # Target fps
+                target_fps = self.sample_rate
+                manifest = manifest[
+                    manifest["frames"]
+                    > self.n_frames * manifest["fps"] / target_fps + 1
+                ]
+            else:  # Multiple possible sample periods
+                min_length = min(self.sample_rate) * self.n_frames
+                manifest = manifest[manifest["frames"] >= min_length]
+        if "filename" not in manifest.columns and "file_uid" in manifest.columns:
+            manifest["filename"] = manifest["file_uid"] + ".avi"
+        return manifest
 
 def process_preds(test_predictions):
     cols = ['Control_preds','Mild_preds','Moderate_preds','Severe_preds']
