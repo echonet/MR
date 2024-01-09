@@ -431,7 +431,7 @@ def make_roc_curve(test_predictions):
     ## Make moderate to severe a dashed line
 
     plt.plot(fpr_severe, tpr_severe, linewidth = lw, color = ext_val_color, label = ('Severe - AUC: ' + str(round(metrics.auc(fpr_severe, tpr_severe),3))))
-    plt.plot(fpr_mod_severe, tpr_mod_severe, linestyle = ls, linewidth = lw, color = ext_val_color, label = '≥ Moderate - AUC: ' + str(round(metrics.auc(fpr_mod_severe, tpr_mod_severe),4))[:-1])
+    plt.plot(fpr_mod_severe, tpr_mod_severe, linestyle = ls, linewidth = lw, color = ext_val_color, label = '≥ Moderate - AUC: ' + str(round(metrics.auc(fpr_mod_severe, tpr_mod_severe),3)))
     plt.xlabel('1- Specificity', fontsize = 20*scaling_factor, rotation = 0, labelpad=10)
     plt.ylabel('Sensitivity', fontsize = 20*scaling_factor, rotation = 90, labelpad=15)
     plt.xticks(fontsize = 17*scaling_factor)
