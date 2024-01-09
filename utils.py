@@ -253,7 +253,7 @@ class EchoDataset(Dataset):
         vid = torch.movedim(vid / 255, -1, 0).to(torch.float32)
         return vid
 
-    def process_manifest_one(self, manifest: DataFrame) -> DataFrame:
+    def process_manifest_one(self, manifest):
         if "mrn" in self.manifest.columns:
             self.manifest["mrn"] = self.manifest["mrn"].apply(zero_pad_20_digits)
         if "study_date" in self.manifest.columns:
