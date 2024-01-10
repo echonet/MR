@@ -103,7 +103,6 @@ def read_video(
         out = np.squeeze(out)
     return out, vid_size, fps
 
-
 class EchoDataset(Dataset):
     def __init__(
         self,
