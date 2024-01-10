@@ -19,6 +19,7 @@ alistair_ekgs/
 *.npy
 alistair_predictions/
 *.pt
+old_inference_manifests/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

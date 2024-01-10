@@ -26,34 +26,6 @@ from tqdm import tqdm
 from matplotlib import rc
 
 
-def crop_and_scale(
-    img: ArrayLike, res: Tuple[int], interpolation=cv2.INTER_CUBIC, zoom: float = 0.0
-) -> ArrayLike:
-    """Takes an image, a resolution, and a zoom factor as input, returns the
-    zoomed/cropped image."""
-    in_res = (img.shape[1], img.shape[0])
-    r_in = in_res[0] / in_res[1]
-    r_out = res[0] / res[1]
-
-    # Crop to correct aspect ratio
-    if r_in > r_out:
-        padding = int(round((in_res[0] - r_out * in_res[1]) / 2))
-        img = img[:, padding:-padding]
-    if r_in < r_out:
-        padding = int(round((in_res[1] - in_res[0] / r_out) / 2))
-        img = img[padding:-padding]
-
-    # Apply zoom
-    if zoom != 0:
-        pad_x = round(int(img.shape[1] * zoom))
-        pad_y = round(int(img.shape[0] * zoom))
-        img = img[pad_y:-pad_y, pad_x:-pad_x]
-
-    # Resize image
-    img = cv2.resize(img, res, interpolation=interpolation)
-
-    return img
-
 def read_video(
     path: Union[str, Path],
     n_frames: int = None,
@@ -130,6 +102,7 @@ def read_video(
     if n_frames == 1:
         out = np.squeeze(out)
     return out, vid_size, fps
+
 
 class EchoDataset(Dataset):
     def __init__(
