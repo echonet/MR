@@ -12,7 +12,7 @@ python predict.py --MR_label_col <MR_label_col> --manifest_path <manifest_path> 
 
 ex: python predict.py --MR_label_col MR_severity --manifest_path C:\Users\Remote\Documents\Amey\MR\manifest_for_testing_ext_val_repo.csv --data_path D:\amey\stanford_echos_MR_ext_val
 
-<img width="1083" alt="image" src="https://github.com/echonet/MR/assets/111397367/42a1751f-f8da-41f7-bcf4-2d6b419a3777">
+<img width="1083" alt="image" src="https://github.com/ecg-net/lvef/blob/main/EF_screenshot.png">
 
 
 ### Obtaining Stats and Figures</br>
