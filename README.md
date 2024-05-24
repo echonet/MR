@@ -23,6 +23,6 @@ After running predict.py, run all cells in the notebook "analyze_predictions.ipy
 
 </br></br> </br>
 
-![](https://github.com/echonet/MR/blob/master/analyze_predictions.gif?raw=true)
+![](https://github.com/ecg-net/lvef/blob/main/analyze_predictions_lvef_repo.gif)
 
 
