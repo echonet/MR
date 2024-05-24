@@ -12,7 +12,7 @@ python predict.py --MR_label_col <MR_label_col> --manifest_path <manifest_path> 
 
 ex: python predict.py --MR_label_col MR_severity --manifest_path C:\Users\Remote\Documents\Amey\MR\manifest_for_testing_ext_val_repo.csv --data_path D:\amey\stanford_echos_MR_ext_val
 
-<img width="1083" alt="image" src="https://github.com/ecg-net/lvef/blob/main/EF_screenshot.png">
+<img width="1083" alt="image" src="https://github.com/echonet/MR/assets/111397367/42a1751f-f8da-41f7-bcf4-2d6b419a3777">
 
 
 ### Obtaining Stats and Figures</br>
@@ -23,6 +23,4 @@ After running predict.py, run all cells in the notebook "analyze_predictions.ipy
 
 </br></br> </br>
 
-![](https://github.com/ecg-net/lvef/blob/main/analyze_predictions_lvef_repo.gif)
-
-
+![](https://github.com/echonet/MR/blob/master/analyze_predictions.gif?raw=true)
