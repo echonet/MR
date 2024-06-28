@@ -39,7 +39,7 @@ with torch.no_grad():
     manifest['final_class_label'] = manifest.final_class.apply(CLASS_LIST.index)
     manifest.to_csv(manifest_path, index = False)
 
-    view_classifier_weights_path = "view_classifier_iteration_3_weights.pt"
+    view_classifier_weights_path = "mr_one_shot_view_classifier.pt"
 
     ## Run view classification prediction model
     test_ds = EchoDataset(
@@ -64,7 +64,7 @@ with torch.no_grad():
     df_preds = pd.DataFrame({'filename': filenames, 'preds': predictions})
     manifest = manifest.merge(df_preds, on="filename", how="inner").drop_duplicates('filename')
     manifest.preds = manifest.preds.apply(sigmoid)
-    manifest = manifest[manifest.preds > 0.519]
+    manifest = manifest[manifest.preds > 0.5]
     manifest.to_csv(
         Path(os.path.dirname(os.path.abspath(__file__)))
         / Path("view_classification_predictions_above_threshold.csv"),
