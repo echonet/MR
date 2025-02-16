@@ -114,13 +114,9 @@ with torch.no_grad():
     manifest_processed = process_preds(manifest)
 
     manifest_processed.to_csv(
-        Path(os.path.dirname(os.path.abspath(__file__))) / Path("MR_model_predictions_non_anonymized.csv"),
+        Path(os.path.dirname(os.path.abspath(__file__))) / Path("MR_model_predictions.csv"),
         index=False,
     )
-
-    process_preds(manifest[['filename','final_class','final_class_label','Control_preds','Mild_preds',
-    'Moderate_preds','Severe_preds']]).to_csv(Path(os.path.dirname(os.path.abspath(__file__))
-    ) / Path('MR_model_predictions_anonymized.csv'))
 
     print('Inference Complete. Please run the the notebook analyze_predictions.ipynb to analyze the results.')
 
